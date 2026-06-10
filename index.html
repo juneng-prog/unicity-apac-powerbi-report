@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unicity APAC — eCommerce Sales Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: #1a1a18; min-height: 100vh; padding: 2rem 1rem; }
+  .page { max-width: 1100px; margin: 0 auto; }
+  .header { margin-bottom: 1.5rem; }
+  .header h1 { font-size: 22px; font-weight: 600; color: #1a1a18; }
+  .header p { font-size: 13px; color: #6b6b67; margin-top: 4px; }
+  .partial-note { font-size: 11px; background: #faeeda; color: #854f0b; padding: 3px 8px; border-radius: 4px; display: inline-block; margin-top: 6px; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 1rem; align-items: center; }
+  .controls label { font-size: 12px; color: #6b6b67; }
+  select { font-size: 12px; padding: 5px 10px; border-radius: 6px; border: 1px solid #d3d1c7; background: #fff; color: #1a1a18; cursor: pointer; }
+  select:focus { outline: 2px solid #378ADD; outline-offset: 1px; }
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .metric-card { background: #fff; border-radius: 10px; padding: 14px 16px; border: 1px solid #e8e6df; }
+  .metric-card .lbl { font-size: 11px; color: #6b6b67; margin-bottom: 4px; }
+  .metric-card .val { font-size: 22px; font-weight: 600; color: #1a1a18; }
+  .metric-card .sub { font-size: 11px; color: #888780; margin-top: 2px; }
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 1.5rem; }
+  .chart-box { background: #fff; border: 1px solid #e8e6df; border-radius: 12px; padding: 16px; }
+  .chart-box h3 { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #1a1a18; }
+  .chart-box h3 span { font-weight: 400; color: #888780; }
+  .chart-box.full { grid-column: 1 / -1; }
+  .bar-bg { background: #f1efe8; border-radius: 3px; height: 6px; margin-top: 4px; }
+  .bar-fill { height: 6px; border-radius: 3px; }
+  .tab-row { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tab { font-size: 11px; padding: 4px 10px; border-radius: 20px; border: 1px solid #d3d1c7; background: #fff; color: #6b6b67; cursor: pointer; transition: all 0.15s; }
+  .tab:hover { border-color: #378ADD; color: #378ADD; }
+  .tab.active { background: #378ADD; color: #fff; border-color: #378ADD; }
+  .section-title { font-size: 14px; font-weight: 600; color: #1a1a18; margin: 1.5rem 0 0.75rem; }
+  .tbl-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #e8e6df; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; background: #fff; border-radius: 10px; overflow: hidden; }
+  th { background: #f5f5f3; font-weight: 600; padding: 8px 12px; text-align: left; border-bottom: 1px solid #e8e6df; white-space: nowrap; color: #6b6b67; font-size: 11px; }
+  th.r { text-align: right; }
+  td { padding: 6px 12px; border-bottom: 1px solid #f1efe8; color: #1a1a18; }
+  td.r { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: none; }
+  .rank-num { font-weight: 600; color: #888780; width: 24px; display: inline-block; }
+  .up { color: #1D9E75; font-weight: 600; }
+  .down { color: #E24B4A; font-weight: 600; }
+  .ch-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .ch-legend span { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #6b6b67; }
+  .ch-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex-shrink: 0; }
+  .total-row td { font-weight: 600; background: #f5f5f3 !important; }
+  @media (max-width: 640px) { .chart-grid { grid-template-columns: 1fr; } body { padding: 1rem; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="header">
+  <h1>Unicity APAC — eCommerce Sales Report</h1>
+  <p>Dec 2025 – Jun 2026 &nbsp;·&nbsp; Sales in kUSD &nbsp;·&nbsp; 7 markets</p>
+  <span class="partial-note">⚠ Jun 2026 is a partial month (data through Jun 10)</span>
+</div>
+
+<div class="controls">
+  <label>View:</label>
+  <select id="metricSel" onchange="render()">
+    <option value="sales">Sales (kUSD)</option>
+    <option value="orders">Orders (count)</option>
+  </select>
+  <label style="margin-left:8px">Period:</label>
+  <select id="periodSel" onchange="render()">
+    <option value="all">All months inc. Jun*</option>
+    <option value="excjun">Dec 2025 – May 2026</option>
+  </select>
+</div>
+
+<div id="kpis" class="metric-grid"></div>
+
+<div class="chart-grid">
+  <div class="chart-box">
+    <h3>Country ranking</h3>
+    <div id="rankingChart"></div>
+  </div>
+  <div class="chart-box">
+    <h3>Channel mix — total Asia</h3>
+    <canvas id="pieChart" role="img" aria-label="Doughnut chart of channel contribution to total Asia sales"></canvas>
+    <div id="pieLegend" class="ch-legend"></div>
+  </div>
+  <div class="chart-box full">
+    <h3>Channel contribution by country <span>· Dec 2025 – May 2026 · % of country total</span></h3>
+    <div style="position:relative;height:320px"><canvas id="stackedBar" role="img" aria-label="Stacked bar chart of channel percentage per country"></canvas></div>
+    <div id="stackedLegend" class="ch-legend" style="margin-top:12px"></div>
+  </div>
+  <div class="chart-box full">
+    <h3>Month-on-month trend — by country</h3>
+    <div style="position:relative;height:260px"><canvas id="trendCountry" role="img" aria-label="Line chart of monthly sales by country"></canvas></div>
+  </div>
+  <div class="chart-box full">
+    <h3>Month-on-month trend — by channel <span>· click to toggle</span></h3>
+    <div class="tab-row" id="channelTabs"></div>
+    <div style="position:relative;height:240px"><canvas id="trendChannel" role="img" aria-label="Line chart of monthly sales by channel"></canvas></div>
+  </div>
+</div>
+
+<p class="section-title">Channel breakdown by country</p>
+<div class="controls">
+  <label>Country:</label>
+  <select id="countrySel" onchange="renderTable()">
+    <option value="all">All Asia</option>
+    <option>Australia</option><option>Japan</option><option>Malaysia</option>
+    <option>New Zealand</option><option>Philippines</option><option>Singapore</option><option>Thailand</option>
+  </select>
+</div>
+<div class="tbl-wrap"><table id="channelTable"></table></div>
+
+<p style="font-size:11px;color:#888780;margin-top:1.5rem;text-align:center">Unicity International · APAC eCommerce · Data source: Power BI · FX-converted to USD at source</p>
+</div>
+
+<script>
+const RAW = [{"country":"Australia","channel":"Autoship","month":"Dec 2025","sales_kusd":43,"orders":318},{"country":"Australia","channel":"Autoship","month":"Jan 2026","sales_kusd":40,"orders":265},{"country":"Australia","channel":"Autoship","month":"Feb 2026","sales_kusd":31,"orders":210},{"country":"Australia","channel":"Autoship","month":"Mar 2026","sales_kusd":34,"orders":213},{"country":"Australia","channel":"Autoship","month":"Apr 2026","sales_kusd":50,"orders":319},{"country":"Australia","channel":"Autoship","month":"May 2026","sales_kusd":70,"orders":415},{"country":"Australia","channel":"Autoship","month":"Jun 2026","sales_kusd":23,"orders":141},{"country":"Australia","channel":"FG Site","month":"Dec 2025","sales_kusd":45,"orders":266},{"country":"Australia","channel":"FG Site","month":"Jan 2026","sales_kusd":51,"orders":298},{"country":"Australia","channel":"FG Site","month":"Feb 2026","sales_kusd":53,"orders":305},{"country":"Australia","channel":"FG Site","month":"Mar 2026","sales_kusd":60,"orders":340},{"country":"Australia","channel":"FG Site","month":"Apr 2026","sales_kusd":76,"orders":415},{"country":"Australia","channel":"FG Site","month":"May 2026","sales_kusd":109,"orders":611},{"country":"Australia","channel":"FG Site","month":"Jun 2026","sales_kusd":30,"orders":174},{"country":"Australia","channel":"Internet-Other","month":"Dec 2025","sales_kusd":1,"orders":10},{"country":"Australia","channel":"Internet-Other","month":"Jan 2026","sales_kusd":2,"orders":11},{"country":"Australia","channel":"Internet-Other","month":"Feb 2026","sales_kusd":2,"orders":16},{"country":"Australia","channel":"Internet-Other","month":"Mar 2026","sales_kusd":4,"orders":24},{"country":"Australia","channel":"Internet-Other","month":"Apr 2026","sales_kusd":4,"orders":21},{"country":"Australia","channel":"Internet-Other","month":"May 2026","sales_kusd":2,"orders":16},{"country":"Australia","channel":"Internet-Other","month":"Jun 2026","sales_kusd":1,"orders":10},{"country":"Australia","channel":"UShop","month":"Dec 2025","sales_kusd":83,"orders":345},{"country":"Australia","channel":"UShop","month":"Jan 2026","sales_kusd":75,"orders":321},{"country":"Australia","channel":"UShop","month":"Feb 2026","sales_kusd":73,"orders":314},{"country":"Australia","channel":"UShop","month":"Mar 2026","sales_kusd":81,"orders":319},{"country":"Australia","channel":"UShop","month":"Apr 2026","sales_kusd":83,"orders":371},{"country":"Australia","channel":"UShop","month":"May 2026","sales_kusd":88,"orders":372},{"country":"Australia","channel":"UShop","month":"Jun 2026","sales_kusd":23,"orders":108},{"country":"Malaysia","channel":"Autoship","month":"Dec 2025","sales_kusd":11,"orders":75},{"country":"Malaysia","channel":"Autoship","month":"Jan 2026","sales_kusd":14,"orders":86},{"country":"Malaysia","channel":"Autoship","month":"Feb 2026","sales_kusd":15,"orders":85},{"country":"Malaysia","channel":"Autoship","month":"Mar 2026","sales_kusd":11,"orders":61},{"country":"Malaysia","channel":"Autoship","month":"Apr 2026","sales_kusd":10,"orders":60},{"country":"Malaysia","channel":"Autoship","month":"May 2026","sales_kusd":21,"orders":91},{"country":"Malaysia","channel":"Autoship","month":"Jun 2026","sales_kusd":4,"orders":22},{"country":"Malaysia","channel":"CS","month":"Dec 2025","sales_kusd":18,"orders":117},{"country":"Malaysia","channel":"CS","month":"Jan 2026","sales_kusd":18,"orders":101},{"country":"Malaysia","channel":"CS","month":"Feb 2026","sales_kusd":17,"orders":79},{"country":"Malaysia","channel":"CS","month":"Mar 2026","sales_kusd":23,"orders":140},{"country":"Malaysia","channel":"CS","month":"Apr 2026","sales_kusd":17,"orders":96},{"country":"Malaysia","channel":"CS","month":"May 2026","sales_kusd":15,"orders":90},{"country":"Malaysia","channel":"CS","month":"Jun 2026","sales_kusd":4,"orders":25},{"country":"Malaysia","channel":"FG Site","month":"Dec 2025","sales_kusd":22,"orders":83},{"country":"Malaysia","channel":"FG Site","month":"Jan 2026","sales_kusd":13,"orders":55},{"country":"Malaysia","channel":"FG Site","month":"Feb 2026","sales_kusd":21,"orders":68},{"country":"Malaysia","channel":"FG Site","month":"Mar 2026","sales_kusd":17,"orders":55},{"country":"Malaysia","channel":"FG Site","month":"Apr 2026","sales_kusd":18,"orders":61},{"country":"Malaysia","channel":"FG Site","month":"May 2026","sales_kusd":13,"orders":58},{"country":"Malaysia","channel":"FG Site","month":"Jun 2026","sales_kusd":2,"orders":12},{"country":"Malaysia","channel":"Internet-Other","month":"Dec 2025","sales_kusd":3,"orders":47},{"country":"Malaysia","channel":"Internet-Other","month":"Jan 2026","sales_kusd":3,"orders":48},{"country":"Malaysia","channel":"Internet-Other","month":"Feb 2026","sales_kusd":4,"orders":52},{"country":"Malaysia","channel":"Internet-Other","month":"Mar 2026","sales_kusd":2,"orders":15},{"country":"Malaysia","channel":"Internet-Other","month":"Apr 2026","sales_kusd":5,"orders":52},{"country":"Malaysia","channel":"Internet-Other","month":"May 2026","sales_kusd":4,"orders":55},{"country":"Malaysia","channel":"Internet-Other","month":"Jun 2026","sales_kusd":1,"orders":7},{"country":"Malaysia","channel":"UShop","month":"Dec 2025","sales_kusd":41,"orders":157},{"country":"Malaysia","channel":"UShop","month":"Jan 2026","sales_kusd":40,"orders":133},{"country":"Malaysia","channel":"UShop","month":"Feb 2026","sales_kusd":39,"orders":137},{"country":"Malaysia","channel":"UShop","month":"Mar 2026","sales_kusd":40,"orders":141},{"country":"Malaysia","channel":"UShop","month":"Apr 2026","sales_kusd":35,"orders":152},{"country":"Malaysia","channel":"UShop","month":"May 2026","sales_kusd":41,"orders":171},{"country":"Malaysia","channel":"UShop","month":"Jun 2026","sales_kusd":8,"orders":32},{"country":"Singapore","channel":"Autoship","month":"Dec 2025","sales_kusd":100,"orders":632},{"country":"Singapore","channel":"Autoship","month":"Jan 2026","sales_kusd":98,"orders":628},{"country":"Singapore","channel":"Autoship","month":"Feb 2026","sales_kusd":91,"orders":568},{"country":"Singapore","channel":"Autoship","month":"Mar 2026","sales_kusd":100,"orders":618},{"country":"Singapore","channel":"Autoship","month":"Apr 2026","sales_kusd":90,"orders":560},{"country":"Singapore","channel":"Autoship","month":"May 2026","sales_kusd":85,"orders":521},{"country":"Singapore","channel":"Autoship","month":"Jun 2026","sales_kusd":30,"orders":183},{"country":"Singapore","channel":"FG Site","month":"Dec 2025","sales_kusd":33,"orders":200},{"country":"Singapore","channel":"FG Site","month":"Jan 2026","sales_kusd":40,"orders":233},{"country":"Singapore","channel":"FG Site","month":"Feb 2026","sales_kusd":24,"orders":141},{"country":"Singapore","channel":"FG Site","month":"Mar 2026","sales_kusd":28,"orders":168},{"country":"Singapore","channel":"FG Site","month":"Apr 2026","sales_kusd":31,"orders":193},{"country":"Singapore","channel":"FG Site","month":"May 2026","sales_kusd":28,"orders":178},{"country":"Singapore","channel":"FG Site","month":"Jun 2026","sales_kusd":11,"orders":63},{"country":"Singapore","channel":"Internet-Other","month":"Dec 2025","sales_kusd":32,"orders":180},{"country":"Singapore","channel":"Internet-Other","month":"Jan 2026","sales_kusd":43,"orders":211},{"country":"Singapore","channel":"Internet-Other","month":"Feb 2026","sales_kusd":36,"orders":174},{"country":"Singapore","channel":"Internet-Other","month":"Mar 2026","sales_kusd":33,"orders":163},{"country":"Singapore","channel":"Internet-Other","month":"Apr 2026","sales_kusd":38,"orders":193},{"country":"Singapore","channel":"Internet-Other","month":"May 2026","sales_kusd":33,"orders":183},{"country":"Singapore","channel":"Internet-Other","month":"Jun 2026","sales_kusd":8,"orders":44},{"country":"Singapore","channel":"UShop","month":"Dec 2025","sales_kusd":37,"orders":175},{"country":"Singapore","channel":"UShop","month":"Jan 2026","sales_kusd":42,"orders":196},{"country":"Singapore","channel":"UShop","month":"Feb 2026","sales_kusd":36,"orders":167},{"country":"Singapore","channel":"UShop","month":"Mar 2026","sales_kusd":53,"orders":236},{"country":"Singapore","channel":"UShop","month":"Apr 2026","sales_kusd":65,"orders":270},{"country":"Singapore","channel":"UShop","month":"May 2026","sales_kusd":58,"orders":256},{"country":"Singapore","channel":"UShop","month":"Jun 2026","sales_kusd":18,"orders":83},{"country":"New Zealand","channel":"Autoship","month":"Dec 2025","sales_kusd":5.8,"orders":44},{"country":"New Zealand","channel":"Autoship","month":"Jan 2026","sales_kusd":5.1,"orders":34},{"country":"New Zealand","channel":"Autoship","month":"Feb 2026","sales_kusd":3.4,"orders":23},{"country":"New Zealand","channel":"Autoship","month":"Mar 2026","sales_kusd":2,"orders":14},{"country":"New Zealand","channel":"Autoship","month":"Apr 2026","sales_kusd":1.8,"orders":12},{"country":"New Zealand","channel":"Autoship","month":"May 2026","sales_kusd":2.6,"orders":17},{"country":"New Zealand","channel":"Autoship","month":"Jun 2026","sales_kusd":0.8,"orders":6},{"country":"New Zealand","channel":"FG Site","month":"Dec 2025","sales_kusd":9.3,"orders":50},{"country":"New Zealand","channel":"FG Site","month":"Jan 2026","sales_kusd":9.5,"orders":61},{"country":"New Zealand","channel":"FG Site","month":"Feb 2026","sales_kusd":6.9,"orders":45},{"country":"New Zealand","channel":"FG Site","month":"Mar 2026","sales_kusd":11.7,"orders":71},{"country":"New Zealand","channel":"FG Site","month":"Apr 2026","sales_kusd":13.9,"orders":92},{"country":"New Zealand","channel":"FG Site","month":"May 2026","sales_kusd":20.1,"orders":125},{"country":"New Zealand","channel":"FG Site","month":"Jun 2026","sales_kusd":6,"orders":41},{"country":"New Zealand","channel":"Internet-Other","month":"Dec 2025","sales_kusd":0,"orders":0},{"country":"New Zealand","channel":"Internet-Other","month":"Jan 2026","sales_kusd":0.1,"orders":1},{"country":"New Zealand","channel":"Internet-Other","month":"Feb 2026","sales_kusd":4.8,"orders":27},{"country":"New Zealand","channel":"Internet-Other","month":"Mar 2026","sales_kusd":0.7,"orders":5},{"country":"New Zealand","channel":"Internet-Other","month":"Apr 2026","sales_kusd":0.9,"orders":6},{"country":"New Zealand","channel":"Internet-Other","month":"May 2026","sales_kusd":0.3,"orders":2},{"country":"New Zealand","channel":"Internet-Other","month":"Jun 2026","sales_kusd":0,"orders":0},{"country":"New Zealand","channel":"UShop","month":"Dec 2025","sales_kusd":8.8,"orders":45},{"country":"New Zealand","channel":"UShop","month":"Jan 2026","sales_kusd":8.3,"orders":45},{"country":"New Zealand","channel":"UShop","month":"Feb 2026","sales_kusd":7.6,"orders":39},{"country":"New Zealand","channel":"UShop","month":"Mar 2026","sales_kusd":8.3,"orders":46},{"country":"New Zealand","channel":"UShop","month":"Apr 2026","sales_kusd":8.3,"orders":48},{"country":"New Zealand","channel":"UShop","month":"May 2026","sales_kusd":12.5,"orders":63},{"country":"New Zealand","channel":"UShop","month":"Jun 2026","sales_kusd":3.7,"orders":20},{"country":"Thailand","channel":"CS","month":"Dec 2025","sales_kusd":190,"orders":848},{"country":"Thailand","channel":"CS","month":"Jan 2026","sales_kusd":220,"orders":923},{"country":"Thailand","channel":"CS","month":"Feb 2026","sales_kusd":210,"orders":852},{"country":"Thailand","channel":"CS","month":"Mar 2026","sales_kusd":260,"orders":902},{"country":"Thailand","channel":"CS","month":"Apr 2026","sales_kusd":220,"orders":832},{"country":"Thailand","channel":"CS","month":"May 2026","sales_kusd":250,"orders":905},{"country":"Thailand","channel":"CS","month":"Jun 2026","sales_kusd":40,"orders":214},{"country":"Thailand","channel":"DSC","month":"Dec 2025","sales_kusd":140,"orders":499},{"country":"Thailand","channel":"DSC","month":"Jan 2026","sales_kusd":140,"orders":400},{"country":"Thailand","channel":"DSC","month":"Feb 2026","sales_kusd":120,"orders":422},{"country":"Thailand","channel":"DSC","month":"Mar 2026","sales_kusd":120,"orders":464},{"country":"Thailand","channel":"DSC","month":"Apr 2026","sales_kusd":110,"orders":407},{"country":"Thailand","channel":"DSC","month":"May 2026","sales_kusd":90,"orders":383},{"country":"Thailand","channel":"DSC","month":"Jun 2026","sales_kusd":10,"orders":83},{"country":"Thailand","channel":"FG Site","month":"Dec 2025","sales_kusd":10,"orders":56},{"country":"Thailand","channel":"FG Site","month":"Jan 2026","sales_kusd":10,"orders":49},{"country":"Thailand","channel":"FG Site","month":"Feb 2026","sales_kusd":10,"orders":47},{"country":"Thailand","channel":"FG Site","month":"Mar 2026","sales_kusd":60,"orders":61},{"country":"Thailand","channel":"FG Site","month":"Apr 2026","sales_kusd":20,"orders":67},{"country":"Thailand","channel":"FG Site","month":"May 2026","sales_kusd":20,"orders":81},{"country":"Thailand","channel":"FG Site","month":"Jun 2026","sales_kusd":10,"orders":40},{"country":"Thailand","channel":"FG Site: Autoship","month":"Dec 2025","sales_kusd":430,"orders":1212},{"country":"Thailand","channel":"FG Site: Autoship","month":"Jan 2026","sales_kusd":420,"orders":1419},{"country":"Thailand","channel":"FG Site: Autoship","month":"Feb 2026","sales_kusd":400,"orders":1315},{"country":"Thailand","channel":"FG Site: Autoship","month":"Mar 2026","sales_kusd":500,"orders":1451},{"country":"Thailand","channel":"FG Site: Autoship","month":"Apr 2026","sales_kusd":390,"orders":1207},{"country":"Thailand","channel":"FG Site: Autoship","month":"May 2026","sales_kusd":470,"orders":1579},{"country":"Thailand","channel":"FG Site: Autoship","month":"Jun 2026","sales_kusd":100,"orders":396},{"country":"Thailand","channel":"Internet-Other: Autoship","month":"Dec 2025","sales_kusd":90,"orders":426},{"country":"Thailand","channel":"Internet-Other: Autoship","month":"Jan 2026","sales_kusd":90,"orders":376},{"country":"Thailand","channel":"Internet-Other: Autoship","month":"Feb 2026","sales_kusd":100,"orders":422},{"country":"Thailand","channel":"Internet-Other: Autoship","month":"Mar 2026","sales_kusd":90,"orders":408},{"country":"Thailand","channel":"Internet-Other: Autoship","month":"Apr 2026","sales_kusd":100,"orders":447},{"country":"Thailand","channel":"Internet-Other: Autoship","month":"May 2026","sales_kusd":130,"orders":549},{"country":"Thailand","channel":"Internet-Other: Autoship","month":"Jun 2026","sales_kusd":30,"orders":143},{"country":"Thailand","channel":"Shop 2.0","month":"Dec 2025","sales_kusd":0,"orders":0},{"country":"Thailand","channel":"Shop 2.0","month":"Jan 2026","sales_kusd":0,"orders":0},{"country":"Thailand","channel":"Shop 2.0","month":"Feb 2026","sales_kusd":0,"orders":16},{"country":"Thailand","channel":"Shop 2.0","month":"Mar 2026","sales_kusd":0,"orders":26},{"country":"Thailand","channel":"Shop 2.0","month":"Apr 2026","sales_kusd":130,"orders":555},{"country":"Thailand","channel":"Shop 2.0","month":"May 2026","sales_kusd":310,"orders":1125},{"country":"Thailand","channel":"Shop 2.0","month":"Jun 2026","sales_kusd":60,"orders":266},{"country":"Thailand","channel":"SocialPoS","month":"Dec 2025","sales_kusd":50,"orders":165},{"country":"Thailand","channel":"SocialPoS","month":"Jan 2026","sales_kusd":40,"orders":152},{"country":"Thailand","channel":"SocialPoS","month":"Feb 2026","sales_kusd":40,"orders":141},{"country":"Thailand","channel":"SocialPoS","month":"Mar 2026","sales_kusd":40,"orders":149},{"country":"Thailand","channel":"SocialPoS","month":"Apr 2026","sales_kusd":50,"orders":199},{"country":"Thailand","channel":"SocialPoS","month":"May 2026","sales_kusd":50,"orders":159},{"country":"Thailand","channel":"SocialPoS","month":"Jun 2026","sales_kusd":10,"orders":31},{"country":"Thailand","channel":"UShop","month":"Dec 2025","sales_kusd":360,"orders":1287},{"country":"Thailand","channel":"UShop","month":"Jan 2026","sales_kusd":370,"orders":1258},{"country":"Thailand","channel":"UShop","month":"Feb 2026","sales_kusd":360,"orders":1308},{"country":"Thailand","channel":"UShop","month":"Mar 2026","sales_kusd":350,"orders":1299},{"country":"Thailand","channel":"UShop","month":"Apr 2026","sales_kusd":160,"orders":775},{"country":"Thailand","channel":"UShop","month":"May 2026","sales_kusd":0.02,"orders":159},{"country":"Thailand","channel":"UShop","month":"Jun 2026","sales_kusd":10,"orders":46},{"country":"Japan","channel":"AO","month":"Dec 2025","sales_kusd":20,"orders":154},{"country":"Japan","channel":"AO","month":"Jan 2026","sales_kusd":22,"orders":140},{"country":"Japan","channel":"AO","month":"Feb 2026","sales_kusd":18,"orders":129},{"country":"Japan","channel":"AO","month":"Mar 2026","sales_kusd":11,"orders":84},{"country":"Japan","channel":"AO","month":"Apr 2026","sales_kusd":5,"orders":39},{"country":"Japan","channel":"AO","month":"May 2026","sales_kusd":12,"orders":132},{"country":"Japan","channel":"AO","month":"Jun 2026","sales_kusd":3,"orders":34},{"country":"Japan","channel":"UShop","month":"Dec 2025","sales_kusd":103,"orders":719},{"country":"Japan","channel":"UShop","month":"Jan 2026","sales_kusd":132,"orders":852},{"country":"Japan","channel":"UShop","month":"Feb 2026","sales_kusd":118,"orders":801},{"country":"Japan","channel":"UShop","month":"Mar 2026","sales_kusd":110,"orders":840},{"country":"Japan","channel":"UShop","month":"Apr 2026","sales_kusd":63,"orders":407},{"country":"Japan","channel":"UShop","month":"May 2026","sales_kusd":158,"orders":1407},{"country":"Japan","channel":"UShop","month":"Jun 2026","sales_kusd":17,"orders":170},{"country":"Philippines","channel":"Autoship","month":"Dec 2025","sales_kusd":10,"orders":76},{"country":"Philippines","channel":"Autoship","month":"Jan 2026","sales_kusd":10,"orders":65},{"country":"Philippines","channel":"Autoship","month":"Feb 2026","sales_kusd":10,"orders":82},{"country":"Philippines","channel":"Autoship","month":"Mar 2026","sales_kusd":10,"orders":80},{"country":"Philippines","channel":"Autoship","month":"Apr 2026","sales_kusd":10,"orders":86},{"country":"Philippines","channel":"Autoship","month":"May 2026","sales_kusd":10,"orders":75},{"country":"Philippines","channel":"Autoship","month":"Jun 2026","sales_kusd":0,"orders":26},{"country":"Philippines","channel":"CS","month":"Dec 2025","sales_kusd":70,"orders":262},{"country":"Philippines","channel":"CS","month":"Jan 2026","sales_kusd":110,"orders":319},{"country":"Philippines","channel":"CS","month":"Feb 2026","sales_kusd":100,"orders":361},{"country":"Philippines","channel":"CS","month":"Mar 2026","sales_kusd":100,"orders":362},{"country":"Philippines","channel":"CS","month":"Apr 2026","sales_kusd":120,"orders":366},{"country":"Philippines","channel":"CS","month":"May 2026","sales_kusd":180,"orders":471},{"country":"Philippines","channel":"CS","month":"Jun 2026","sales_kusd":50,"orders":112},{"country":"Philippines","channel":"FG Site","month":"Dec 2025","sales_kusd":70,"orders":448},{"country":"Philippines","channel":"FG Site","month":"Jan 2026","sales_kusd":80,"orders":540},{"country":"Philippines","channel":"FG Site","month":"Feb 2026","sales_kusd":100,"orders":592},{"country":"Philippines","channel":"FG Site","month":"Mar 2026","sales_kusd":100,"orders":633},{"country":"Philippines","channel":"FG Site","month":"Apr 2026","sales_kusd":120,"orders":827},{"country":"Philippines","channel":"FG Site","month":"May 2026","sales_kusd":160,"orders":1067},{"country":"Philippines","channel":"FG Site","month":"Jun 2026","sales_kusd":50,"orders":332},{"country":"Philippines","channel":"Internet-Other","month":"Dec 2025","sales_kusd":270,"orders":964},{"country":"Philippines","channel":"Internet-Other","month":"Jan 2026","sales_kusd":410,"orders":1318},{"country":"Philippines","channel":"Internet-Other","month":"Feb 2026","sales_kusd":330,"orders":1239},{"country":"Philippines","channel":"Internet-Other","month":"Mar 2026","sales_kusd":410,"orders":1436},{"country":"Philippines","channel":"Internet-Other","month":"Apr 2026","sales_kusd":430,"orders":1524},{"country":"Philippines","channel":"Internet-Other","month":"May 2026","sales_kusd":600,"orders":1898},{"country":"Philippines","channel":"Internet-Other","month":"Jun 2026","sales_kusd":150,"orders":549},{"country":"Philippines","channel":"UShop","month":"Dec 2025","sales_kusd":10,"orders":16},{"country":"Philippines","channel":"UShop","month":"Jan 2026","sales_kusd":0,"orders":8},{"country":"Philippines","channel":"UShop","month":"Feb 2026","sales_kusd":0,"orders":0},{"country":"Philippines","channel":"UShop","month":"Mar 2026","sales_kusd":0,"orders":0},{"country":"Philippines","channel":"UShop","month":"Apr 2026","sales_kusd":0,"orders":0},{"country":"Philippines","channel":"UShop","month":"May 2026","sales_kusd":0,"orders":0},{"country":"Philippines","channel":"UShop","month":"Jun 2026","sales_kusd":0,"orders":0}];
+
+const MONTHS_ALL=['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026','Jun 2026'];
+const MONTHS_EXC=['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'];
+const MONTHS_STACKED=['Dec 2025','Jan 2026','Feb 2026','Mar 2026','Apr 2026','May 2026'];
+const COUNTRIES=['Thailand','Philippines','Singapore','Australia','Japan','Malaysia','New Zealand'];
+const CHANNELS=['AO','Autoship','CS','DSC','FG Site','FG Site: Autoship','Internet-Other','Internet-Other: Autoship','Shop 2.0','SocialPoS','UShop'];
+const COLORS=['#378ADD','#1D9E75','#D85A30','#BA7517','#D4537E','#534AB7','#639922','#E24B4A','#5F5E5A','#0F6E56','#993C1D'];
+const COUNTRY_COLORS=['#378ADD','#D85A30','#1D9E75','#534AB7','#BA7517','#D4537E','#639922'];
+
+let pieChart=null,trendCountryChart=null,trendChannelChart=null,stackedBarChart=null;
+let hiddenChannels=new Set();
+
+function getMetric(){return document.getElementById('metricSel').value;}
+function getMonths(){return document.getElementById('periodSel').value==='excjun'?MONTHS_EXC:MONTHS_ALL;}
+function field(){return getMetric()==='sales'?'sales_kusd':'orders';}
+function filtered(months){return RAW.filter(r=>months.includes(r.month));}
+function sumBy(data,key,val,f){return data.filter(r=>r[key]===val).reduce((a,r)=>a+r[f],0);}
+
+function render(){
+  const months=getMonths(), data=filtered(months), f=field();
+  const total=data.reduce((a,r)=>a+r[f],0);
+  const may=data.filter(r=>r.month==='May 2026').reduce((a,r)=>a+r[f],0);
+  const apr=data.filter(r=>r.month==='Apr 2026').reduce((a,r)=>a+r[f],0);
+  const mom=apr>0?((may-apr)/apr*100):0;
+  const topCountry=COUNTRIES.map(c=>({c,v:sumBy(data,'country',c,f)})).sort((a,b)=>b.v-a.v)[0];
+  const topChannel=CHANNELS.map(c=>({c,v:sumBy(data,'channel',c,f)})).sort((a,b)=>b.v-a.v)[0];
+  document.getElementById('kpis').innerHTML=`
+    <div class="metric-card"><div class="lbl">Total ${f==='sales_kusd'?'kUSD':'orders'}</div><div class="val">${f==='sales_kusd'?total.toLocaleString(undefined,{maximumFractionDigits:0})+' k':total.toLocaleString()}</div><div class="sub">period total</div></div>
+    <div class="metric-card"><div class="lbl">May vs Apr MoM</div><div class="val ${mom>=0?'up':'down'}">${mom>=0?'+':''}${mom.toFixed(1)}%</div><div class="sub">${f==='sales_kusd'?may.toFixed(0)+' k vs '+apr.toFixed(0)+' k':may+' vs '+apr}</div></div>
+    <div class="metric-card"><div class="lbl">Top country</div><div class="val" style="font-size:16px">${topCountry.c}</div><div class="sub">${f==='sales_kusd'?topCountry.v.toFixed(0)+' kUSD':topCountry.v.toLocaleString()+' orders'}</div></div>
+    <div class="metric-card"><div class="lbl">Top channel</div><div class="val" style="font-size:14px">${topChannel.c}</div><div class="sub">${f==='sales_kusd'?topChannel.v.toFixed(0)+' kUSD':topChannel.v.toLocaleString()+' orders'}</div></div>`;
+  renderRanking(data,f); renderPie(data,f); renderStackedBar(); renderTrendCountry(months,f); renderTrendChannel(months,f); renderTable();
+}
+
+function renderRanking(data,f){
+  const vals=COUNTRIES.map(c=>({c,v:sumBy(data,'country',c,f)})).sort((a,b)=>b.v-a.v);
+  const max=vals[0].v;
+  document.getElementById('rankingChart').innerHTML=vals.map((item,i)=>`
+    <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:12px"><span class="rank-num">${i+1}</span>${item.c}</span>
+        <span style="font-size:12px;font-weight:600">${f==='sales_kusd'?item.v.toFixed(0)+' k':item.v.toLocaleString()}</span>
+      </div>
+      <div class="bar-bg"><div class="bar-fill" style="width:${Math.round(item.v/max*100)}%;background:${COUNTRY_COLORS[i]}"></div></div>
+    </div>`).join('');
+}
+
+function renderPie(data,f){
+  const vals=CHANNELS.map(c=>({c,v:sumBy(data,'channel',c,f)})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+  const total=vals.reduce((a,x)=>a+x.v,0);
+  if(pieChart){pieChart.destroy();pieChart=null;}
+  document.getElementById('pieLegend').innerHTML=vals.map((x,i)=>`<span><i style="background:${COLORS[i%COLORS.length]}"></i>${x.c} ${(x.v/total*100).toFixed(1)}%</span>`).join('');
+  pieChart=new Chart(document.getElementById('pieChart'),{
+    type:'doughnut',
+    data:{labels:vals.map(x=>x.c),datasets:[{data:vals.map(x=>x.v),backgroundColor:vals.map((_,i)=>COLORS[i%COLORS.length]),borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${f==='sales_kusd'?ctx.raw.toFixed(1)+' k':ctx.raw.toLocaleString()} (${(ctx.raw/total*100).toFixed(1)}%)`}}}}
+  });
+}
+
+function renderStackedBar(){
+  if(stackedBarChart){stackedBarChart.destroy();stackedBarChart=null;}
+  const data=RAW.filter(r=>MONTHS_STACKED.includes(r.month));
+  const activeChannels=CHANNELS.filter(ch=>COUNTRIES.some(c=>sumBy(data.filter(r=>r.country===c),'channel',ch,'sales_kusd')>0));
+  const countryTotals={};
+  COUNTRIES.forEach(c=>{countryTotals[c]=data.filter(r=>r.country===c).reduce((a,r)=>a+r.sales_kusd,0);});
+  const datasets=activeChannels.map((ch,i)=>({
+    label:ch,
+    data:COUNTRIES.map(c=>{
+      const v=sumBy(data.filter(r=>r.country===c),'channel',ch,'sales_kusd');
+      return countryTotals[c]>0?Math.round(v/countryTotals[c]*1000)/10:0;
+    }),
+    backgroundColor:COLORS[CHANNELS.indexOf(ch)%COLORS.length],
+    borderWidth:0
+  }));
+  stackedBarChart=new Chart(document.getElementById('stackedBar'),{
+    type:'bar',data:{labels:COUNTRIES,datasets},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ${ctx.raw.toFixed(1)}%`}}},
+      scales:{x:{stacked:true,ticks:{font:{size:11},autoSkip:false}},y:{stacked:true,min:0,max:100,ticks:{font:{size:11},callback:v=>v+'%'}}}}
+  });
+  document.getElementById('stackedLegend').innerHTML=activeChannels.map(ch=>`<span><i style="background:${COLORS[CHANNELS.indexOf(ch)%COLORS.length]}"></i>${ch}</span>`).join('');
+}
+
+function renderTrendCountry(months,f){
+  if(trendCountryChart){trendCountryChart.destroy();trendCountryChart=null;}
+  trendCountryChart=new Chart(document.getElementById('trendCountry'),{
+    type:'line',
+    data:{labels:months,datasets:COUNTRIES.map((c,i)=>({label:c,data:months.map(m=>RAW.filter(r=>r.country===c&&r.month===m).reduce((a,r)=>a+r[f],0)),borderColor:COUNTRY_COLORS[i],backgroundColor:COUNTRY_COLORS[i]+'22',tension:0.3,pointRadius:3,borderWidth:2,fill:false}))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11}}}},scales:{x:{ticks:{font:{size:11},autoSkip:false}},y:{ticks:{font:{size:11}}}}}
+  });
+}
+
+function renderTrendChannel(months,f){
+  if(trendChannelChart){trendChannelChart.destroy();trendChannelChart=null;}
+  const active=CHANNELS.filter(c=>!hiddenChannels.has(c));
+  trendChannelChart=new Chart(document.getElementById('trendChannel'),{
+    type:'line',
+    data:{labels:months,datasets:active.map(c=>({label:c,data:months.map(m=>RAW.filter(r=>r.channel===c&&r.month===m).reduce((a,r)=>a+r[f],0)),borderColor:COLORS[CHANNELS.indexOf(c)%COLORS.length],backgroundColor:COLORS[CHANNELS.indexOf(c)%COLORS.length]+'22',tension:0.3,pointRadius:3,borderWidth:2,fill:false}))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11},autoSkip:false}},y:{ticks:{font:{size:11}}}}}
+  });
+  document.getElementById('channelTabs').innerHTML=CHANNELS.map(c=>`<button class="tab ${hiddenChannels.has(c)?'':'active'}" onclick="toggleChannel('${c}')">${c}</button>`).join('');
+}
+
+function toggleChannel(c){
+  if(hiddenChannels.has(c)) hiddenChannels.delete(c); else hiddenChannels.add(c);
+  renderTrendChannel(getMonths(),field());
+}
+
+function renderTable(){
+  const months=getMonths(), data=filtered(months), f=field();
+  const country=document.getElementById('countrySel').value;
+  const d2=country==='all'?data:data.filter(r=>r.country===country);
+  const rows=[...new Set(d2.map(r=>r.channel))].sort().map(ch=>{
+    const total=sumBy(d2,'channel',ch,f);
+    const byMonth=months.map(m=>d2.filter(r=>r.channel===ch&&r.month===m).reduce((a,r)=>a+r[f],0));
+    const last=byMonth[byMonth.length-2], prev=byMonth[byMonth.length-3];
+    return{ch,total,byMonth,mom:prev>0?((last-prev)/prev*100):null};
+  }).sort((a,b)=>b.total-a.total);
+  const gt=rows.reduce((a,r)=>a+r.total,0);
+  let html=`<thead><tr><th>Channel</th>${months.map(m=>`<th class="r">${m}</th>`).join('')}<th class="r">Total</th><th class="r">Share</th><th class="r">May MoM</th></tr></thead><tbody>`;
+  rows.forEach(r=>{
+    const mom=r.mom!==null?`<span class="${r.mom>=0?'up':'down'}">${r.mom>=0?'+':''}${r.mom.toFixed(1)}%</span>`:'—';
+    html+=`<tr><td>${r.ch}</td>${r.byMonth.map(v=>`<td class="r">${f==='sales_kusd'?v.toFixed(1):v}</td>`).join('')}<td class="r" style="font-weight:600">${f==='sales_kusd'?r.total.toFixed(1):r.total.toLocaleString()}</td><td class="r">${(r.total/gt*100).toFixed(1)}%</td><td class="r">${mom}</td></tr>`;
+  });
+  html+=`<tr class="total-row"><td>Total</td>${months.map(m=>{const v=d2.filter(r=>r.month===m).reduce((a,r)=>a+r[f],0);return`<td class="r">${f==='sales_kusd'?v.toFixed(1):v}</td>`;}).join('')}<td class="r">${f==='sales_kusd'?gt.toFixed(1):gt.toLocaleString()}</td><td class="r">100%</td><td class="r">—</td></tr></tbody>`;
+  document.getElementById('channelTable').innerHTML=html;
+}
+
+render();
+</script>
+</body>
+</html>
